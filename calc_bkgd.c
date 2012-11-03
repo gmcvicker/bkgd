@@ -12,26 +12,27 @@
 #include "bkgd_interp.h"
 
 
-
-
 /**
  * Retrieves a table of recombination rates for current chromosome
  * from database
  */
-static RecRateTable *get_rectab(Config *config, const char *chr_name) {
+static RecRateTable *get_rectab(Config *config, Chromosome *chr) {
   long len, n_sf;
   SeqFeature *sf;
   char *rec_tab_name;
   double rec_scale;
   RecRateTable *rtab;
 
-  rec_tab_name = config_get_str(an->config, "RECOMB_RATE_TABLE");  
-  rec_scale = config_get_double(an->config, "RECOMB_RATE_SCALE");
+  rec_tab_name = config_get_str(config, "RECOMB_RATE_TABLE");  
+  rec_scale = config_get_double(config, "RECOMB_RATE_SCALE");
   
+  /*******************************************************/
   /* TODO: read recombination rate features from file */
   sf = NULL;
+  n_sf = 0;
+  /*******************************************************/
   
-  rtab = rectab_from_feats(sf, n_sf, len, rec_scale);
+  rtab = rectab_from_feats(sf, n_sf, chr->len, rec_scale);
   seqfeat_array_free(sf, n_sf);
 
   return rtab;
@@ -48,24 +49,21 @@ static RecRateTable *get_rectab(Config *config, const char *chr_name) {
  * recombination rates change in order to make integral approximation
  * of background selection sum more efficient.
  */
-static GList *get_cons_rec_dists(Analysis *an, RecRateTable *rtab) {
+static GList *get_cons_rec_dists(Config *config, Chromosome *chr,
+				 RecRateTable *rtab) {
   long len, i, j, n_sf, ttl_left, ttl_right, ttl_cons, last_end;
   SeqCoord *region;
-  SeqFeatureDBA *sf_dba;
   SeqFeature *sf;
   ConsBlock *cblk;
   GList *cons_list, *cur;
   char *cons_tab;
-  
-  region = analysis_get_region(an);
-  len = region->end - region->start + 1;
 
-  sf_dba = seqfeat_dba_create(an->dbc);
+  /*********************************************************/
+  /* TODO: read list of conserved features for this chromosome from a file */
+  sf = NULL;
+  n_sf = 0;
 
-  cons_tab = config_get_str(an->config, "CONS_TABLE");
-
-  /* get conserved elements from database */
-  sf = seqfeat_dba_fetch_by_region(sf_dba, region, cons_tab, &n_sf);
+  /********************************************************/
 
   /* order conserved elements */
   qsort(sf, n_sf, sizeof(SeqFeature), seqfeat_cmp_nostrand);
@@ -153,19 +151,14 @@ static GList *get_cons_rec_dists(Analysis *an, RecRateTable *rtab) {
  * Calculates background selection strength at each position along a
  * chromosome using provided parameters, recombination map and list of
  * conserved elements.
- * 
  */
-void calc_bkgd_chr(Analysis *an, RecRateTable *rtab, GList *cons_list,
+void calc_bkgd_chr(Chromosome *chr, RecRateTable *rtab, GList *cons_list,
 		   BkgdParam *parm,  FILE *out_fh) {
   double b;
-  long pos, chr_len;
+  long pos;
   GList *next_cons;
   int b_int, prev_b_int, b_len;
-  SeqCoord *region;
   BkgdInterp *bgi;
-
-  region = analysis_get_region(an);
-  chr_len = region->end - region->start + 1;
 
   next_cons = cons_list;
 
@@ -175,10 +168,10 @@ void calc_bkgd_chr(Analysis *an, RecRateTable *rtab, GList *cons_list,
   b_len = 0;
 
   /* Create interpolator to estimate B values at positions along chr */
-  bgi = bkgd_interp_new(rtab, chr_len, cons_list, parm);
+  bgi = bkgd_interp_new(rtab, chr->len, cons_list, parm);
 
   pos = 1;
-  while(pos <= chr_len) {
+  while(pos <= chr->len) {
     b = bkgd_interp_eval(bgi, pos);
     
     if((pos % 1000000)==0) {
@@ -223,7 +216,6 @@ void calc_bkgd_chr(Analysis *an, RecRateTable *rtab, GList *cons_list,
 
 int main(int argc, char **argv) {
   Config *config;
-  Analysis *analysis;
   GList *cons_list, *cur;
   char *out_dir, *out_path, **chr_names, chr_filename;
   int n_chr, i;
@@ -247,30 +239,30 @@ int main(int argc, char **argv) {
   parm = bkgd_param_new(config);
 
   /* get list of chromosome names to run on */
-  chr_filename = config_get_str(config, "CHROMOSOME_FILE")
+  chr_filename = config_get_str(config, "CHROMOSOME_FILE");
   chrs = chr_read_file(chr_filename, &n_chr);
 
   for(i = 0; i < n_chr; i++) {
-    fprintf(stderr, "\nanalysis region: %s\n", chrs[i].name);
+    fprintf(stderr, "\nchromosome: %s\n", chrs[i].name);
     out_path = util_str_concat(out_dir, chrs[i].name, ".bkgd", NULL);
     out_fh = util_must_fopen(out_path, "w");
     g_free(out_path);
 
     fprintf(stderr, "retrieving recombination rates\n");
-    rtab = get_rectab(analysis);
+    rtab = get_rectab(config, &chrs[i]);
     
     /* get recombination distances of conserved sites,
      * and convert rec rates to dists
      */
     fprintf(stderr, "calculating conserved rec dists\n");
-    cons_list = get_cons_rec_dists(analysis, rtab);
+    cons_list = get_cons_rec_dists(config, &chrs[i], rtab);
 
     fprintf(stderr, "  total recomb dist for %s: %gM\n", 
-	    region->chr->name, rtab->chr_r_len);
+	    chrs[i].name, rtab->chr_r_len);
 
     /* calculate strength of background selection at each position on chr */
     fprintf(stderr, "calculating b vals\n");
-    calc_bkgd_chr(analysis, rtab, cons_list, parm, out_fh);
+    calc_bkgd_chr(&chrs[i], rtab, cons_list, parm, out_fh);
     
     fprintf(stderr, "freeing recombination distances\n");
     rectab_free(rtab);
@@ -290,8 +282,7 @@ int main(int argc, char **argv) {
   fprintf(stderr, "freeing parameters and interpolation tables\n");
   bkgd_param_free(parm);
 
-  fprintf(stderr, "freeing analysis and config\n");
-  analysis_free(analysis);
+  fprintf(stderr, "freeing config\n");
   config_free(config);
 
   return 0;  

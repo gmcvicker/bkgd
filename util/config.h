@@ -5,9 +5,6 @@
 #include <glib.h>
 
 
-#define CONFIG_MISSING_KEY_WARN 0
-#define CONFIG_MISSING_KEY_ERROR 1
-
 typedef struct {
   int missing_key_action;
   GHashTable *vals;
@@ -17,9 +14,8 @@ typedef struct {
 } Config;
 
 
-Config *config_read_file(const char *filename, int missing_key_action);
-Config *config_read_args(const int argc, const char **argv, 
-			 const int missing_key_action);
+Config *config_read_file(const char *filename);
+Config *config_read_args(const int argc, const char **argv);
 int config_has_key(const Config *conf, const char *key);
 char  *config_get_str(const Config *conf, const char *key);
 char **config_get_str_array(const Config *conf, const char *key, int *sz);

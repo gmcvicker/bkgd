@@ -5,17 +5,20 @@
 #include <sys/stat.h>
 #include <ctype.h>
 #include <zlib.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <errno.h>
 
+#include "memutil.h"
 #include "util.h"
-
-
+#include "err.h"
 
 
 /**
  * Returns TRUE if the provided filename ends with ".gz", returns
  * FALSE otherwise.
  */
-int util_has_gz_ext(char *filename) {
+int util_has_gz_ext(const char *filename) {
   size_t len;
 
   len = strlen(filename);
@@ -42,7 +45,7 @@ char *util_read_entire_file(char *filename) {
   fh = fopen(filename, "r");
 
   if(fh == NULL) {
-    g_error("%s:%d: Could not open tree file '%s'", __FILE__, 
+    my_err("%s:%d: Could not open tree file '%s'", __FILE__, 
 	    __LINE__, filename);
   }
 
@@ -50,9 +53,9 @@ char *util_read_entire_file(char *filename) {
   fstat(fileno(fh), &fs);
 
   /* read entire file at once */
-  buf = g_new(char, fs.st_size + 1);
+  buf = my_new(char, fs.st_size + 1);
   if(fread(buf, fs.st_size, 1, fh) == 0) {
-    g_error("%s:%d: Could not read entire file '%s'", __FILE__,
+    my_err("%s:%d: Could not read entire file '%s'", __FILE__,
 	    __LINE__, filename);
   }
 
@@ -74,7 +77,7 @@ long util_fcount_lines(FILE *fh) {
   int len;
 
   if(fseek(fh, 0L, SEEK_SET) != 0) {
-    g_error("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
+    my_err("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
   }
 
   line_count = 0;
@@ -86,10 +89,42 @@ long util_fcount_lines(FILE *fh) {
   }
 
   if(fseek(fh, 0L, SEEK_SET) != 0) {
-    g_error("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
+    my_err("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
   }
 
   return line_count;
+}
+
+
+/**
+ * write a subset of lines which are flagged as TRUE in the provided
+ * array (that should have a length corresponding to the number lines
+ * in the file)
+ */
+void util_fwrite_line_subset(FILE *input_fh, FILE *output_fh,
+			     long n_lines, unsigned char *line_flags) {
+  long i, len;
+  char buf[UTIL_FGETS_BUF_SZ];
+  
+  i = 0;
+  while(fgets(buf, UTIL_FGETS_BUF_SZ, input_fh) != NULL) {
+    len = strlen(buf);
+    if(buf[len-1] != '\n') {
+      my_err("%s:%d: line %ld is too long\n", __FILE__, __LINE__, i+1);
+    }
+
+    if(i >= n_lines) {
+      my_err("%s:%d: line has more lines than expected (%ld)", 
+	     __FILE__, __LINE__, n_lines);
+    }
+    
+    if(line_flags[i]) {
+      /* write line to output file */
+      fprintf(output_fh, "%s", buf);
+    }
+	
+    i += 1;
+  }
 }
 
 
@@ -105,7 +140,7 @@ long util_gzcount_lines(gzFile gzf) {
   size_t len;
 
   if(gzseek(gzf, 0L, SEEK_SET) != 0) {
-    g_error("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
+    my_err("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
   }
 
   line_count = 0;
@@ -118,7 +153,7 @@ long util_gzcount_lines(gzFile gzf) {
   }
 
   if(gzseek(gzf, 0L, SEEK_SET) != 0) {
-    g_error("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
+    my_err("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
   }
 
   return line_count;
@@ -135,11 +170,11 @@ long util_gzcount_lines(gzFile gzf) {
 long util_fcount_lines_match(FILE *fh, const char *starts_with) {
   char buf[UTIL_FGETS_BUF_SZ];
   long line_count;
-  gboolean started_with, at_line_start;
-  gint match_len, len;
+  int started_with, at_line_start;
+  int match_len, len;
 
   if(fseek(fh, 0L, SEEK_SET) != 0) {
-    g_error("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
+    my_err("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
   }
 
   match_len = strlen(starts_with);
@@ -148,7 +183,7 @@ long util_fcount_lines_match(FILE *fh, const char *starts_with) {
   }
 
   if(match_len > UTIL_FGETS_BUF_SZ) {
-    g_error("%s:%d: length of string to match must be"
+    my_err("%s:%d: length of string to match must be"
 	    "<= %d bytes", __FILE__, __LINE__, UTIL_FGETS_BUF_SZ);
   }
 
@@ -178,7 +213,7 @@ long util_fcount_lines_match(FILE *fh, const char *starts_with) {
   }
 
   if(fseek(fh, 0L, SEEK_SET) != 0) {
-    g_error("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
+    my_err("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
   }
 
   return line_count;
@@ -198,7 +233,7 @@ long util_gzcount_lines_match(gzFile gzf, const char *starts_with) {
   int match_len, len;
 
   if(gzseek(gzf, 0L, SEEK_SET) != 0) {
-    g_error("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
+    my_err("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
   }
 
   match_len = strlen(starts_with);
@@ -207,7 +242,7 @@ long util_gzcount_lines_match(gzFile gzf, const char *starts_with) {
   }
 
   if(match_len > UTIL_FGETS_BUF_SZ) {
-    g_error("%s:%d: length of string to match must be"
+    my_err("%s:%d: length of string to match must be"
 	    "<= %d bytes", __FILE__, __LINE__, UTIL_FGETS_BUF_SZ);
   }
 
@@ -237,12 +272,85 @@ long util_gzcount_lines_match(gzFile gzf, const char *starts_with) {
   }
 
   if(gzseek(gzf, 0L, SEEK_SET) != 0) {
-    g_error("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
+    my_err("%s:%d: could not rewind filehandle", __FILE__, __LINE__);
   }
 
   return line_count;
 }
 
+
+
+/**
+ * returns TRUE if file with provided path exists, FALSE otherwise
+ */
+int util_file_exists(const char *path) {
+  struct stat s;
+  return stat(path, &s) == 0;
+}
+
+
+/**
+ * concatenates a variable number of strings together into a single
+ * string and returns the result. The last argument provided must be
+ * NULL, to indicate the end of the variable arguments.  The returned
+ * string should be freed when it is no longer needed.
+ *
+ * example:
+ *   
+ *
+ *  char *my_str = util_str_concat("hello", " ", "world!", NULL);
+ *  fprintf(stderr, "str: %s\n", my_str);
+ *  my_free(my_str);
+ *
+ */
+char *util_str_concat(const char *str1, ...) {
+  size_t ttl_len;
+  char *next_str, *new_str;
+  va_list args;
+  
+  if(str1 == NULL) {
+    return NULL;
+  }
+
+  /* first pass through variable args: determine total size of str */
+  va_start(args, str1);
+
+  ttl_len = strlen(str1);
+
+  while(1) {
+    next_str = va_arg(args, char *);
+    if(next_str == NULL) {
+      /* end of args list */
+      break;
+    }
+    ttl_len += strlen(next_str);
+  }
+
+  va_end(args);
+
+
+  /* second pass through args: paste strings together */
+  new_str = my_new(char, ttl_len + 1);
+  
+  strcpy(new_str, str1);
+  ttl_len = strlen(str1);
+
+  va_start(args, str1);
+  while(1) {
+    next_str = va_arg(args, char *);
+    if(next_str == NULL) {
+      break;
+    }
+
+    /* append next string to end of current str */
+    strcpy(&new_str[ttl_len], next_str);
+
+    ttl_len += strlen(next_str);
+  }
+  va_end(args);
+
+  return new_str;
+}
 
 
 
@@ -260,7 +368,7 @@ char *util_gzgets_line(gzFile gzf) {
 
   len = strlen(buf);
   ttl_len = len;
-  line = g_new(char, len+1);
+  line = my_new(char, len+1);
   strcpy(line, buf);
 
   /* keep extending the line until a newline or EOF is reached */
@@ -273,10 +381,10 @@ char *util_gzgets_line(gzFile gzf) {
     len = strlen(buf);
     old_line = line;
 
-    line = g_strconcat(old_line, buf, NULL);
+    line = util_str_concat(old_line, buf, NULL);
     ttl_len += len;
 
-    g_free(old_line);
+    my_free(old_line);
   }
 
   /* remove trailing newline char */
@@ -306,7 +414,7 @@ char *util_fgets_line(FILE *fh) {
 
   len = strlen(buf);
   ttl_len = len;
-  line = g_new(char, len+1);
+  line = my_new(char, len+1);
   strcpy(line, buf);
 
   /* keep extending the line until a newline or EOF is reached */
@@ -319,10 +427,10 @@ char *util_fgets_line(FILE *fh) {
     len = strlen(buf);
     old_line = line;
 
-    line = g_strconcat(old_line, buf, NULL);
+    line = util_str_concat(old_line, buf, NULL);
     ttl_len += len;
 
-    g_free(old_line);
+    my_free(old_line);
   }
 
   /* remove trailing newline char */
@@ -334,43 +442,43 @@ char *util_fgets_line(FILE *fh) {
 }
 
 
+
 /**
- * Converts a singly-linked list structure into an array and returns
- * the array. Does not free the singly-linked list or the elements in
- * the single linked list (all of which shallow copied).  The array
- * should be freed when no longer needed. The value pointed to by
- * num_elem is set to the number of elements in the array.
+ * Makes a copy of a string and returns it. The new string should
+ * be freed when it is no longer needed
  */
-void *util_slist_to_array(GSList *slist, size_t sz, long *num_elem) {
-  GSList *cur;
-  long count;
-  size_t mempos;
-  char *array;
+char *util_str_dup(const char *str) {
+  char *new_str;
+  new_str = my_new(char, strlen(str)+1);
+  strcpy(new_str, str);
 
-  /* count the number of elements in the list */
-  count = 0;
-  cur = slist;
-  while(cur != NULL) {
-    count++;
-    cur = g_slist_next(cur);
-  }
-
-  /* allocate memory for the array */
-  array = g_malloc(sz * count);
-
-  /* copy the elements from the linked list */
-  cur = slist;
-  mempos = 0;
-  while(cur != NULL) {
-    memcpy(&array[mempos], cur->data, sz);
-    mempos += sz;
-    cur = g_slist_next(cur);
-  }
-
-  *num_elem = count;
-
-  return (void *)array;
+  return new_str;
 }
+
+
+/**
+ * Makes a copy of a string up to n characters long and returns it.
+ * If the string is longer than n characters, then a string of n
+ * characters (plus a '\0') is returned. The new string should be
+ * freed when it is no longer needed
+ */
+char *util_str_ndup(const char *str, size_t n) {
+  char *new_str;
+  size_t len;
+
+  len = 0;
+  while(len < n && str[len] != '\0') {
+    len++;
+  }
+
+  new_str = my_new(char, len+1);
+  strncpy(new_str, str, len);
+  new_str[len] = '\0';
+
+  return new_str;
+}
+
+
 
 
 /**
@@ -453,21 +561,21 @@ void util_str_remove_char(char *str, const char c) {
  */
 char *util_long_to_comma_str(const long x) {
   char *str, *comma_str;
-  gint len,i,j,k;
-  gint max_commas;
+  int len,i,j,k;
+  int max_commas;
 
-  str = g_new(char, UTIL_STR_BUF_SZ);
+  str = my_new(char, UTIL_STR_BUF_SZ);
   max_commas = (UTIL_STR_BUF_SZ / 3);
   
   len = snprintf(str, UTIL_STR_BUF_SZ-max_commas, "%lu", x);
 
   if(len == 0) {
-    g_error("%s:%d: could not write number %lu to string", 
+    my_err("%s:%d: could not write number %lu to string", 
 	    __FILE__, __LINE__, x);
   }
   
   max_commas = len / 3;
-  comma_str = g_new(char, len + max_commas + 1);
+  comma_str = my_new(char, len + max_commas + 1);
 
   /* copy the string in reverse, adding commas every three */
   j = 0;
@@ -485,7 +593,7 @@ char *util_long_to_comma_str(const long x) {
   }
 
   comma_str[j] = '\0';
-  g_free(str);
+  my_free(str);
 
   util_breverse(comma_str, j);
 
@@ -508,7 +616,7 @@ void util_reverse(void *base, const size_t nmemb, const size_t size) {
   /* allocate mem for holding swap */
   tmp = malloc(size);
   if(tmp == NULL) {
-    g_error("%s:%d: could not allocate mem", __FILE__, __LINE__);
+    my_err("%s:%d: could not allocate mem", __FILE__, __LINE__);
   }
   
   /* initiailize pointers so that they point to beginning and end of array */
@@ -636,6 +744,9 @@ int util_str_starts_with(const char *str, const char *start) {
 }
 
 
+
+
+
 /**
  * Returns FALSE if the end of str exactly matches the characters in
  * end
@@ -664,108 +775,31 @@ int util_str_ends_with(const char *str, const char *end) {
 }
 
 
-
-void __util_hash_table_keys(gpointer key, gpointer val, gpointer user_data) {
-  char **keys;
-  int *idx_ptr;
-  void **data;
-
-  data = user_data;
-
-  keys = (char **)data[0];
-  idx_ptr = (int *)data[1];
-
-  keys[*idx_ptr] = g_strdup(key);
-
-  *idx_ptr += 1;
-
-  return;
-}
-
-
 /**
- * Returns an array of the keys for the provided hash table. The
- * strings are all copies (i.e. do not point to the actual keys within
- * the hash table data structureq), and should be freed when they are
- * no longer needed.
- * 
+ * Splits a string into n_tok or fewer tokens
+ * using space and tab as delimitors.  Returns the
+ * number of tokens read. The provided string is modified by replacing
+ * delimitors with '\0'.
  */
-char **util_hash_table_keys(GHashTable *hash_tab, int *n_keys) {
-  char **keys;
-  int i;
-  void *data[2];
+int util_str_split(char *str, char **tokens, const size_t n_tok) {  
+  size_t i = 0;
 
-  *n_keys = g_hash_table_size(hash_tab);
-  if(*n_keys == 0) {
-    return NULL;
-  } 
+  if(n_tok < 1) {
+    my_err("%s:%d: number of tokens must be at least 1\n",
+	   __FILE__, __LINE__);
+  }
 
-  keys = g_new(char *, *n_keys);
+  while(((tokens[i] = strsep(&str, " \t")) != NULL)) {
+    if(tokens[i][0] != '\0') {
+      i++;
 
-  i = 0;
-  data[0] = keys;
-  data[1] = &i;
-
-  g_hash_table_foreach(hash_tab, __util_hash_table_keys, data);
-
-  return keys;
-}
-
-
-void __util_hash_table_free(gpointer key, gpointer val, gpointer user_data) {
-  g_free(key);
-  g_free(val);
-}
-
-
-int __util_hash_table_flush(gpointer key, gpointer val, gpointer hash_tab) {
-  g_free(key);
-  g_free(val);
-  return TRUE;
-}
-
-
-/**
- * Frees all allocated keys and values in a hash table. Assumes that
- * it is ok to deallocate key and value memory using free().
- */
-void util_hash_table_flush(GHashTable *hash_tab) {
-  g_hash_table_foreach_remove(hash_tab, __util_hash_table_flush, hash_tab);
-}
-
-
-/**
- * Frees all allocated keys and values in a hash table and then frees
- * the hash table itself. Only safe to use if it is ok to free all of
- * the keys and values.
- */
-void util_hash_table_free(GHashTable *hash_tab) {
-  g_hash_table_foreach(hash_tab, __util_hash_table_free, NULL);
-  g_hash_table_destroy(hash_tab);
-}
-
-
-
-
-
-/**
- * Takes a pointer to a long int and returns the long value cast as
- * an unsigned int so that it can be used as a hash value in a
- * GHashTable.
- */
-unsigned int util_long_hash(gconstpointer v) {
-  long *l;
-  l = (long *)v;
-  return (guint)*l;
-}
-
-/**
- * Takes pointers to two long ints and returns TRUE if the values they
- * point to are equal.  Used for comparison of long int hash keys in a
- * GHashTable
- */
-int util_long_equal(gconstpointer v1, gconstpointer v2) {
-  return *(long *)v1 == *(long *)v2;
+      if(i == n_tok) {
+	break;
+      }
+    }
+  }
+  
+  return i;
 }
 
 
@@ -781,4 +815,150 @@ int util_dbl_cmp(const void *x, const void *y) {
     return 1;
   }
   return 0;
+}
+
+
+/**
+ * Reads size bytes from a file or prints an error and aborts. 
+ * Based on Jim Kent's mustRead function
+ */
+void util_must_fread(FILE *file, void *buf, size_t size) {
+  if(size != 0 && fread(buf, size, 1, file) != 1) {
+    if(ferror(file)) {
+      my_err("error reading %lld bytes: %s", (long long)size, 
+	     strerror(ferror(file)));
+    } else {
+      my_err("end of file reading %lld bytes", (long long)size);
+    }
+  }
+}
+
+
+
+/** 
+ * Wrapper around fopen that prints an error and aborts on
+ * failure to open the file
+ */
+FILE *util_must_fopen(const char *path, const char *mode) {
+  FILE *f;
+
+  errno = 0;
+  f = fopen(path, mode);
+  if(f == NULL) {
+    my_err("%s:%d: error opening file '%s' in mode '%s': %s", 
+	   __FILE__, __LINE__, path, mode, strerror(errno));
+  }
+
+  return f;
+}
+
+
+
+/** 
+ * Wrapper around fopen that prints an error and aborts on
+ * failure to open the file
+ */
+gzFile util_must_gzopen(const char *path, const char *mode) {
+  gzFile f;
+
+  if((strcmp(mode, "wb") == 0) && !util_str_ends_with(path, ".gz")) {
+    my_warn("%s:%d: file '%s' does not end with '.gz' but "
+	    "opening with gzopen anyway\n", __FILE__, __LINE__,
+	    path);
+  }
+
+  errno = 0;
+  f = gzopen(path, mode);
+  if(f == NULL) {
+    if(errno) {
+      my_err("%s:%d: error opening file '%s' in mode '%s': %s", 
+	     __FILE__, __LINE__, path, mode, strerror(errno));
+    } else {
+      my_err("%s:%d: error opening file '%s' in mode '%s'", 
+	     __FILE__, __LINE__, path, mode);
+    }
+  }
+
+  return f;
+}
+
+
+
+/**
+ * Writes size bytes to a file or prints an error and aborts.
+ */
+void util_must_fwrite(FILE *file, void *buf, size_t size) {
+  if(size != 0 && fwrite(buf, size, 1, file) != 1) {
+    if(ferror(file)) {
+      my_err("error writing %lld bytes: %s", (long long)size, 
+	     strerror(ferror(file)));
+    } else {
+      my_err("error writing %lld bytes\n", (long long)size);
+    }
+  }
+}
+
+
+/**
+ * Wrapper around strtol that aborts and writes an error message on
+ * failure
+ */
+long util_parse_long(const char *str) {
+  long val;
+
+  errno = 0;
+  val = strtol(str, NULL, 10);
+  if(val == 0 && errno) {
+    perror("strtol");
+    my_err("%s:%d: failed to parse long string '%s'", __FILE__, __LINE__, str);
+  }
+
+  return val;
+}
+
+
+/**
+ * returns true if the provided string is one of 'na' or 'nan', ignoring case
+ */
+static int is_nan_str(const char *str) {
+  int i;
+  char uc_str[4];
+
+  /* convert first three chars to uppercase string */
+  i = 0;
+  while((str[i] != '\0') && (!isspace(str[i])) && (i < 3)) {
+    uc_str[i] = toupper(str[i]);
+    i++;
+  }
+  uc_str[i] = '\0';
+
+  /* is this a NAN? */
+  if(i == 3) {
+    return (strncmp(uc_str, "NAN", 3) == 0);
+  }
+
+  /* is this a NA? */
+  return (strncmp(uc_str, "NA", 2) == 0);
+}
+
+/**
+ * Wrapper around strtod that aborts and writes an error message on
+ * failure
+ */
+double util_parse_double(const char *str) {
+  double val;
+
+  if(is_nan_str(str)) {
+    return NAN;
+  }
+
+  errno = 0;
+  val = strtod(str, NULL);
+  if(errno) {
+    perror("strtod");
+    my_err("%s:%d: failed to parse double string '%s'", __FILE__, __LINE__,
+	   str);
+  }
+
+  return val;
 }

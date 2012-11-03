@@ -3,9 +3,10 @@
 #include <glib.h>
 #include <stdlib.h>
 
+#include "err.h"
 #include "util.h"
 #include "config.h"
-
+#include "memutil.h"
 
 /* parses a single line of a config file */
 static void config_parse_line(Config *conf, char *line) {
@@ -23,7 +24,7 @@ static void config_parse_line(Config *conf, char *line) {
   tokens = g_strsplit(line, "=", 2);
 
   if(tokens[0] == NULL || tokens[1] == NULL) {
-    g_error("%s:%d: expected '=' sign seperating tokens."
+    my_err("%s:%d: expected '=' sign seperating tokens."
 	    " line: '%s'", __FILE__, __LINE__, line);
   }
 
@@ -48,7 +49,7 @@ static void config_parse_line(Config *conf, char *line) {
 
   /* check that this key is unique */
   if(g_hash_table_lookup(conf->vals, key) != NULL) {
-    g_error("%s:%d: configuration key '%s' is defined "
+    my_err("%s:%d: configuration key '%s' is defined "
 	    "multiple times", __FILE__, __LINE__, key);
   }
 
@@ -57,40 +58,41 @@ static void config_parse_line(Config *conf, char *line) {
 }
 
 
+static void free_array(void *ptr) {
+  g_strfreev(ptr);
+}
+
 
 /* Reads a configuration file into a hashtable
  * that can then be used to lookup values associated
  * with configuration keys
  */
-Config *config_read_file(const char *filename, const int missing_key_action) {
+Config *config_read_file(const char *filename) {
   Config *conf;
   FILE *fh;
   char *line;
 
-  conf = g_new(Config, 1);
+  conf = my_new(Config, 1);
+  conf->vals = g_hash_table_new_full(g_str_hash, g_str_equal,
+				     free, free);
 
-  if(missing_key_action != CONFIG_MISSING_KEY_WARN &&
-     missing_key_action != CONFIG_MISSING_KEY_ERROR) {
-    g_error("%s:%d: missing key action must be one of "
-	    "CONFIG_MISSING_KEY_WARN or CONFIG_MISSING_KEY_ERROR",
-	    __FILE__, __LINE__);
-  }
+  conf->val_arrays = g_hash_table_new_full(g_str_hash, g_str_equal,
+					   NULL, free_array);
 
-  conf->vals = g_hash_table_new(g_str_hash, g_str_equal);
-  conf->val_arrays = g_hash_table_new(g_str_hash, g_str_equal);
-  conf->val_long_arrays = g_hash_table_new(g_str_hash, g_str_equal);
-  conf->val_double_arrays = g_hash_table_new(g_str_hash, g_str_equal);
-  
-  conf->missing_key_action = missing_key_action;
+  conf->val_long_arrays = g_hash_table_new_full(g_str_hash, g_str_equal,
+						NULL, free);
+
+  conf->val_double_arrays = g_hash_table_new_full(g_str_hash, g_str_equal,
+						  NULL, free);
 
   fh = fopen(filename, "r");
   if(fh == NULL) {
-    g_error("%s:%d: Could not open file '%s'", __FILE__, __LINE__, filename);
+    my_err("%s:%d: Could not open file '%s'", __FILE__, __LINE__, filename);
   }
   
   while((line = util_fgets_line(fh)) != NULL) {
     config_parse_line(conf, line);
-    g_free(line);
+    my_free(line);
   }
   
   fclose(fh);
@@ -107,38 +109,24 @@ Config *config_read_file(const char *filename, const int missing_key_action) {
  * are assumed to specify additional config keys formatted as in the
  * same way as the config file: KEY1=VALUE1
  */
-Config *config_read_args(const int argc, const char **argv, 
-			 const int missing_key_action) {
+Config *config_read_args(const int argc, const char **argv) {
   Config *config;
   char *conf_arg;
   int i;
 
   if(argc < 2) {
-    g_error("%s:%d: expected at least two arguments",
+    my_err("%s:%d: expected at least two arguments",
 	    __FILE__, __LINE__);
   }
-  config = config_read_file(argv[1], missing_key_action);
+  config = config_read_file(argv[1]);
 
   for(i = 2; i < argc; i++) {
     conf_arg = g_strdup(argv[i]);
     config_parse_line(config, conf_arg);
-    g_free(conf_arg);
+    my_free(conf_arg);
   }
 
   return config;
-}
-
-
-
-void __config_free_str_array(gpointer key, gpointer val, gpointer unused) {
-  g_strfreev(val);
-  /* don't free key: shared by all config hash tables */
-}
-
-
-void __config_free_array(gpointer key, gpointer val, gpointer unused) {
-  g_free(val);
-  /* don't free key: shared by all config hash tables */
 }
 
 
@@ -146,15 +134,11 @@ void __config_free_array(gpointer key, gpointer val, gpointer unused) {
  * Frees the memory allocated for a Config data structure. 
  */
 void config_free(Config *conf) {
-  g_hash_table_foreach(conf->val_arrays, __config_free_str_array, NULL);
-  g_hash_table_foreach(conf->val_long_arrays, __config_free_array, NULL);
-  g_hash_table_foreach(conf->val_double_arrays, __config_free_array, NULL);
   g_hash_table_destroy(conf->val_arrays);
   g_hash_table_destroy(conf->val_long_arrays);
   g_hash_table_destroy(conf->val_double_arrays);
-
-  util_hash_table_free(conf->vals);
-  g_free(conf);
+  g_hash_table_destroy(conf->vals);
+  my_free(conf);
 
   return;
 }
@@ -175,13 +159,8 @@ int config_has_key(const Config *conf, const char *key) {
  * Gives an error or warning that the config is missing a key
  */
 void config_missing_key(const Config *conf, const char *key) {
-  if(conf->missing_key_action == CONFIG_MISSING_KEY_WARN) {
-    g_warning("%s:%d: no value associated with config key '%s'",
-	      __FILE__, __LINE__,key);
-  } else {
-    g_error("%s:%d: no value associated with config key '%s'",
-	    __FILE__, __LINE__, key);
-  }
+  my_err("%s:%d: no value associated with config key '%s'",
+	 __FILE__, __LINE__, key);
 }
 
 
@@ -240,9 +219,6 @@ char **config_get_str_array(const Config *conf, const char *key, int *num) {
 
 
 
-
-
-
 /* Returns a double floating point value associated with the
  * provided configuration key. A warning is issued if the
  * if the key is not found in the configuration or the value
@@ -262,8 +238,8 @@ double config_get_double(const Config *conf, const char *key) {
   errno = 0;
   d = strtod(val, NULL);
   if(d == 0.0 && errno) {
-    g_warning("%s:%d: value associated with key '%s' does not "
-	   "look like a double (%s)", __FILE__, __LINE__, key, val);
+    my_warn("%s:%d: value associated with key '%s' does not "
+	    "look like a double (%s)", __FILE__, __LINE__, key, val);
   }
 
   return d;
@@ -290,8 +266,8 @@ long config_get_long(const Config *conf, const char *key) {
   errno = 0;
   l = strtol(val, NULL, 10);
   if(errno) {
-    g_warning("%s:%d: value associated with key '%s' does not "
-	   "look like a long (%s)", __FILE__, __LINE__, key, val);
+    my_warn("%s:%d: value associated with key '%s' does not "
+	    "look like a long (%s)", __FILE__, __LINE__, key, val);
   }
 
   return l;
@@ -317,8 +293,8 @@ int config_get_int(const Config *conf, const char *key) {
   errno = 0;
   i = (int)strtol(val, NULL, 10);
   if(errno) {
-    g_warning("%s:%d: value associated with key '%s' does not "
-	      "look like an int (%s)", __FILE__, __LINE__, key, val);
+    my_err("%s:%d: could not parse value '%s' for key '%s' as "
+	   "an int (%s)", __FILE__, __LINE__, val, key);
   }
 
   return i;
@@ -363,9 +339,15 @@ long *config_get_long_array(Config *conf, const char *key, int *num) {
   long_array = g_hash_table_lookup(conf->val_long_arrays, key);
   if(long_array == NULL) {
     /* create the new long array and store it for future use & freeing */
-    long_array = g_new(long, n);
+    long_array = my_new(long, n);
     for(i = 0; i < n; i++) {
+      errno = 0;
       long_array[i] = strtol(str_array[i], NULL, 10);
+
+      if(errno) {
+	my_err("%s:%d: could not parse value '%s' for key '%s' as "
+	       "an int (%s)", __FILE__, __LINE__, str_array[i], key);
+      }
     }
 
     g_hash_table_insert(conf->val_long_arrays, g_strdup(key), long_array);
@@ -382,7 +364,7 @@ long *config_get_long_array(Config *conf, const char *key, int *num) {
  * number of elements in the returned array.
  */
 double *config_get_double_array(Config *conf, const char *key, int *num) {
-  char **str_array;
+  char **str_array, *next;
   double *dbl_array;
   int n;
   int i;
@@ -412,13 +394,18 @@ double *config_get_double_array(Config *conf, const char *key, int *num) {
   /* check if char array already converted into long data type */
   dbl_array = g_hash_table_lookup(conf->val_double_arrays, key);
   if(dbl_array == NULL) {
-    /* create the new long array and store it for future use & freeing */
-    dbl_array = g_new(double, n);
+    /* create the new array and store it for future use & freeing */
+    dbl_array = my_new(double, n);
     for(i = 0; i < n; i++) {
-      dbl_array[i] = strtod(str_array[i], NULL);
+      dbl_array[i] = strtod(str_array[i], &next);
+      if((dbl_array[i] == 0.0) && (next == str_array[i])) {
+	my_err("%s:%d: value %s for key %s could not be parsed as a double",
+	       __FILE__, __LINE__, str_array[i], key);
+      }
     }
 
-    g_hash_table_insert(conf->val_double_arrays, g_strdup(key), dbl_array);
+    g_hash_table_insert(conf->val_double_arrays, 
+			util_str_dup(key), dbl_array);
   }
   
   return dbl_array;
@@ -453,8 +440,8 @@ int config_get_boolean(const Config *conf, const char *key) {
     return FALSE;
   }
 
-  g_warning("%s:%d: value associated with key '%s' does not "
-	 "look like a boolean (%s)", __FILE__, __LINE__, key, val);
+  my_warn("%s:%d: value associated with key '%s' does not "
+	  "look like a boolean (%s)", __FILE__, __LINE__, key, val);
 
   return FALSE;
 }

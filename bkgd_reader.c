@@ -16,7 +16,7 @@
  * Reads a B value line from the specified filehandle. Sets the length
  * in the int pointed to by the len argument, and returns the B value.
  */
-static int bkgd_read_line(gzFile *gzf, int *len) {
+static int bkgd_read_line(gzFile gzf, int *len) {
   char line[BKGD_READER_MAX_LINE];
   char *l_ptr;
   int b;

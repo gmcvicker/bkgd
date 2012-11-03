@@ -6,7 +6,7 @@
 
 
 typedef struct {
-  gzFile *gzf; /* handle to file containing b values for chr */
+  gzFile gzf; /* handle to file containing b values for chr */
   
   long pos; /* current position on chr */
   int b;    /* current b value */
