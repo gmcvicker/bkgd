@@ -1,11 +1,8 @@
+CFLAGS = -c -Wall -O2
+CFLAGS += `pkg-config --libs`
+CFLAGS += `gsl-config --cflags`
 
-GSL_CFLAGS=`gsl-config --cflags`
-GLIB_CFLAGS=`pkg-config --libs`
-CFLAGS"=-Wall -O4 $GSL_CFLAGS $GLIB_CFLAGS"
-
-GSL_LFLAGS=`gsl-config --libs`
-GLIB_LFLAGS=`pkg-config glib-2.0 --libs`
-LFLAGS="-lz $GSL_LFLAGS $GLIB_LFLAGS"
+LFLAGS=-lz
 CC=gcc
 
 objects=bkgd.o bkgd_interp.o interp_tab.o bkgd_intg.o bkgd_point.o bkgd_data.o
