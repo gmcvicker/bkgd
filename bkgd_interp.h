@@ -3,10 +3,10 @@
 
 #include <glib.h>
 #include <gsl/gsl_spline.h>
-#include <util/config.h>
+#include "util/config.h"
 #include "bkgd.h"
 #include "bkgd_point.h"
-#include <bio/rectab.h>
+#include "bio/rectab.h"
 
 
 /* maximum distance between interpolation points in morgans */

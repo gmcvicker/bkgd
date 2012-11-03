@@ -5,9 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <util/config.h>
-#include <util/util.h>
-#include <numer/elog.h>
+#include "util/config.h"
+#include "util/util.h"
+#include "numer/elog.h"
 
 #include <gsl/gsl_multimin.h>
 

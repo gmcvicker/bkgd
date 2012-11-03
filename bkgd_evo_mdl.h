@@ -1,7 +1,7 @@
 #ifndef __BKGD_EVO_MDL__
 #define __BKGD_EVO_MDL__
 
-#include <util/config.h>
+#include "util/config.h"
 #include "model.h"
 
 #include "bkgd_evo_mdl_param.h"

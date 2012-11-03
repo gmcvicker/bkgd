@@ -1,7 +1,7 @@
 #ifndef __BKGD_PARAM_H__
 #define __BKGD_PARAM_H__
 
-#include <util/config.h>
+#include "util/config.h"
 
 #include "interp_tab.h"
 

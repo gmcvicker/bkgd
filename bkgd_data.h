@@ -1,7 +1,7 @@
 #ifndef __BKGD_DATA_H__
 #define __BKGD_DATA_H__
 
-#include <util/config.h>
+#include "util/config.h"
 #include "bkgd_evo_mdl.h"
 
 

@@ -4,8 +4,8 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_spline.h>
 
-#include <util/config.h>
-#include <numer/numer.h>
+#include "util/config.h"
+#include "numer/numer.h"
 #include "bkgd_interp.h"
 #include "bkgd_param.h"
 #include "bkgd_point.h"
@@ -26,7 +26,7 @@ static double get_r_next(double x, double bkgd, double b_drv1, double b_drv2) {
    * 2nd derivates at this point.
    */
 
-  /* find coefficients of quadtratic */
+  /* find coefficients of quadratic */
   a = 0.5 * b_drv2;
   b = b_drv1 - b_drv2 * x;
   c = a*x*x - b_drv1*x + bkgd;

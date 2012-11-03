@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <util/config.h>
-#include <util/util.h>
-#include <numer/elog.h>
+#include "util/config.h"
+#include "util/util.h"
+#include "numer/elog.h"
 
 
 #include "bkgd_data.h"
@@ -623,7 +623,7 @@ static BkgdEvoMdlData *read_data_file(const char *file, const double cat_scale,
   char line[MAX_LINE];
   char *str_next, *str_cur;
   long n_lines, val;
-  gzFile *gzf;
+  gzFile gzf;
   BkgdEvoMdlData *data;
 
   fprintf(stderr, "Reading data\n");

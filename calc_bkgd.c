@@ -3,10 +3,10 @@
 
 #include <glib.h>
 
-#include "seqcoord.h"
-#include "chr.h"
-#include "config.h"
-#include "rectab.h"
+#include "bio/seqcoord.h"
+#include "bio/chr.h"
+#include "util/config.h"
+#include "bio/rectab.h"
 #include "bkgd.h"
 #include "bkgd_param.h"
 #include "bkgd_interp.h"
@@ -24,17 +24,13 @@ static RecRateTable *get_rectab(Config *config, const char *chr_name) {
   char *rec_tab_name;
   double rec_scale;
   RecRateTable *rtab;
-  
-  region = analysis_get_region(an);
-  len = region->end - region->start + 1;
 
-  sf_dba = seqfeat_dba_create(an->dbc);
-
-  rec_tab_name = config_get_str(an->config, "RECOMB_RATE_TABLE");
+  rec_tab_name = config_get_str(an->config, "RECOMB_RATE_TABLE");  
   rec_scale = config_get_double(an->config, "RECOMB_RATE_SCALE");
-
-  /* get recombination rates from database */
-  sf = seqfeat_dba_fetch_by_region(sf_dba, region, rec_tab_name, &n_sf);
+  
+  /* TODO: read recombination rate features from file */
+  sf = NULL;
+  
   rtab = rectab_from_feats(sf, n_sf, len, rec_scale);
   seqfeat_array_free(sf, n_sf);
 
