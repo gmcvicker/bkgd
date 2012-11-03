@@ -1,0 +1,28 @@
+
+There are two main programs that make up the software. The first
+program, calc_bkgd, takes recombination rates, the locations of
+conserved segments under purifying selection and some parameters that
+define the distribution of selection coefficients. Using these data
+the program estimates a B value for every location in the genome.
+
+The second program, bkgd_mle, takes a set of 5-species multiple
+alignments and B values and performs maximum likelihood estimation of
+several evolutionary parameters including the ancestral effective
+populations sizes, mutation rates and rescaling factor for the
+selection coefficients.
+
+Currently, the code is not very usable by other people. The main issue
+is that it is written to retrieve conserved sites and recombination
+rates from a mysql database which I used at UW. The code that
+retrieves data from the database is in a separate library, which I
+also wrote (I can provide this to you if you wish). My plan is to
+strip the database components from the background selection code, and
+to make it read features and recombination rates from user-provided
+files instead.
+
+The code also depends on several external libraries. I use glibc for
+several datastructures (e.g. hashtables, linked lists, stacks), and I
+use the gnu scientific library (gsl) for numerical integration and
+function minimization. I've also been using scons (www.scons.org) to
+build my code, rather than traditional makefiles.
+
