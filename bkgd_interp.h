@@ -6,7 +6,7 @@
 #include "util/config.h"
 #include "bkgd.h"
 #include "bkgd_point.h"
-#include "bio/rectab.h"
+#include "rectab.h"
 
 
 /* maximum distance between interpolation points in morgans */

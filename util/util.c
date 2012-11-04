@@ -32,38 +32,6 @@ int util_has_gz_ext(const char *filename) {
 
 
 
-/**
- * Helper function, reads an entire file into memory and returns the
- * result as a null-terminated string. The returned string should be
- * freed when it is no longer needed.
- */
-char *util_read_entire_file(char *filename) {
-  FILE *fh;
-  struct stat fs;
-  char *buf;
-
-  fh = fopen(filename, "r");
-
-  if(fh == NULL) {
-    my_err("%s:%d: Could not open tree file '%s'", __FILE__, 
-	    __LINE__, filename);
-  }
-
-  /* determine file size */
-  fstat(fileno(fh), &fs);
-
-  /* read entire file at once */
-  buf = my_new(char, fs.st_size + 1);
-  if(fread(buf, fs.st_size, 1, fh) == 0) {
-    my_err("%s:%d: Could not read entire file '%s'", __FILE__,
-	    __LINE__, filename);
-  }
-
-  buf[fs.st_size] = '\0';
-
-  return buf;
-}
-
 
 
 /**
@@ -774,33 +742,6 @@ int util_str_ends_with(const char *str, const char *end) {
   return TRUE;
 }
 
-
-/**
- * Splits a string into n_tok or fewer tokens
- * using space and tab as delimitors.  Returns the
- * number of tokens read. The provided string is modified by replacing
- * delimitors with '\0'.
- */
-int util_str_split(char *str, char **tokens, const size_t n_tok) {  
-  size_t i = 0;
-
-  if(n_tok < 1) {
-    my_err("%s:%d: number of tokens must be at least 1\n",
-	   __FILE__, __LINE__);
-  }
-
-  while(((tokens[i] = strsep(&str, " \t")) != NULL)) {
-    if(tokens[i][0] != '\0') {
-      i++;
-
-      if(i == n_tok) {
-	break;
-      }
-    }
-  }
-  
-  return i;
-}
 
 
 /**

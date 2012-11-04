@@ -26,7 +26,6 @@
 
 int util_has_gz_ext(const char *filename);
 
-char *util_read_entire_file(char *filename);
 long util_fcount_lines(FILE *fh);
 long util_gzcount_lines(gzFile gzf);
 long util_fcount_lines_match(FILE *fh, const char *starts_with);
@@ -59,7 +58,6 @@ void util_str_rstrip(char *str);
 void util_str_strip(char *str);
 int util_str_starts_with(const char *str, const char *start);
 int util_str_ends_with(const char *str, const char *end);
-int util_str_split(char *str, char **tokens, const size_t n_tok);
 
 int util_dbl_cmp(const void *x, const void *y);
 

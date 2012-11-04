@@ -630,6 +630,7 @@ SeqFeature *seqfeat_read_bed(const char *filename, long *n_read) {
     }
 
     /* first three fields (chr, start, end) are required */
+    feats[*n_read].c.chr = NULL;
     feats[*n_read].c.seqname = g_strdup(toks[0]);
     feats[*n_read].c.start = strtol(toks[1], NULL, 10) + 1;
     feats[*n_read].c.end   = strtol(toks[2], NULL, 10);
@@ -655,6 +656,8 @@ SeqFeature *seqfeat_read_bed(const char *filename, long *n_read) {
       feats[*n_read].c.strand = STRAND_NONE;
     }
 
+    feats[*n_read].n_sub_feat = 0;
+    feats[*n_read].sub_feats = NULL;
     feats[*n_read].attrib = NULL;
 
     *n_read += 1;

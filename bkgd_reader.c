@@ -2,10 +2,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <zlib.h>
 
-#include <util/util.h>
-
-#include <bio/bkgd_reader.h>
+#include "util/util.h"
+#include "bkgd_reader.h"
 
 
 #define BKGD_READER_MAX_B 1000

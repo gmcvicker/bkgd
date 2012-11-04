@@ -6,7 +6,8 @@
 #include "bio/seqcoord.h"
 #include "bio/chr.h"
 #include "util/config.h"
-#include "bio/rectab.h"
+#include "util/util.h"
+#include "rectab.h"
 #include "bkgd.h"
 #include "bkgd_param.h"
 #include "bkgd_interp.h"
@@ -17,29 +18,105 @@
  * from database
  */
 static RecRateTable *get_rectab(Config *config, Chromosome *chr) {
-  long len, n_sf;
+  long n_sf, i, start;
   SeqFeature *sf;
-  char *rec_tab_name;
-  double rec_scale;
+  char *rec_rate_dir, *rec_rate_prefix, *rec_rate_postfix;
+  char *rec_rate_filename;
+  double rec_scale, rate;
   RecRateTable *rtab;
+  FILE *f;
+  char buf[1024];
 
-  rec_tab_name = config_get_str(config, "RECOMB_RATE_TABLE");  
+  rec_rate_dir = config_get_str(config, "RECOMB_RATE_DIR");  
+  rec_rate_prefix = config_get_str(config, "RECOMB_RATE_PREFIX");
+  rec_rate_postfix = config_get_str(config, "RECOMB_RATE_POSTFIX");
   rec_scale = config_get_double(config, "RECOMB_RATE_SCALE");
   
-  /*******************************************************/
-  /* TODO: read recombination rate features from file */
-  sf = NULL;
-  n_sf = 0;
-  /*******************************************************/
+  rec_rate_filename = util_str_concat(rec_rate_dir, "/", rec_rate_prefix,
+				      chr->name, rec_rate_postfix, NULL);
+
+  f = util_must_fopen(rec_rate_filename, "r");
+  /* Subtract two from number of lines in file to determine number of 
+   * features. First line is header, and there are 1 less recombination rate
+   * interval features than there are markers in the map.
+   */
+  n_sf = util_fcount_lines(f) - 2;
   
+  /* skip header line */
+  if(fgets(buf, sizeof(buf), f) == NULL) {
+    g_error("%s:%d: failed to read header line from file %s", 
+	    __FILE__, __LINE__, rec_rate_filename);
+  }
+
+  sf = g_new(SeqFeature, n_sf);
+
+  /* create a seq feature for each recombination rate block
+   * set seq feature score equal to the recombination rate
+   * Note that file actually gives markers, not blocks.
+   */
+  fprintf(stderr, "reading recombination rates from file '%s'\n", 
+	  rec_rate_filename);
+  for(i = 0; i < n_sf+1; i++) {
+    if(fgets(buf, sizeof(buf), f) == NULL) {
+      g_error("%s:%d: failed to read line %ld from file %s", 
+	      __FILE__, __LINE__, i+1, rec_rate_filename);
+    }
+
+    /* read rate and start of this interval */
+    sscanf(buf, "%*s %ld %lf %*s", &start, &rate);
+
+    if(i < n_sf) {
+      /* this is not the final line, so start a new feature */
+      sf[i].c.chr = NULL;
+      sf[i].c.seqname = util_str_dup(chr->name);
+
+      sf[i].n_sub_feat = 0;
+      sf[i].sub_feats = NULL;
+      sf[i].name = NULL;
+      sf[i].attrib = NULL;
+      
+      sf[i].c.start = start;
+      sf[i].score = rate;
+
+      if(sf[i].score < 0.0) {
+	g_error("%s:%d: invalid recombination rate %g for position %ld\n",
+		__FILE__, __LINE__, sf[i].score, sf[i].c.start);
+		
+      }
+    }
+
+    if(i > 0) {
+      /* set end of previous feature */
+      sf[i-1].c.end = start - 1;
+    }
+  }
+  fprintf(stderr, "read %ld recombination regions\n", n_sf);
+
+  /* convert these features to a 'recombination rate table' */
   rtab = rectab_from_feats(sf, n_sf, chr->len, rec_scale);
+
+  /* free the features that we created */
   seqfeat_array_free(sf, n_sf);
+  g_free(rec_rate_filename);
 
   return rtab;
 }
 
 
 
+
+static char *get_cons_filename(Config *config, Chromosome *chr) {
+  char *filename;
+  char *dir;
+  char *postfix;
+
+  dir = config_get_str(config, "CONS_DIR");
+  postfix = config_get_str(config, "CONS_POSTFIX");
+  
+  filename = util_str_concat(dir, "/", chr->name, postfix, NULL);
+
+  return filename;
+}
 
 
 /**
@@ -51,19 +128,17 @@ static RecRateTable *get_rectab(Config *config, Chromosome *chr) {
  */
 static GList *get_cons_rec_dists(Config *config, Chromosome *chr,
 				 RecRateTable *rtab) {
-  long len, i, j, n_sf, ttl_left, ttl_right, ttl_cons, last_end;
-  SeqCoord *region;
+  long i, j, n_sf, ttl_left, ttl_right, ttl_cons, last_end;
   SeqFeature *sf;
   ConsBlock *cblk;
   GList *cons_list, *cur;
-  char *cons_tab;
+  char *cons_filename;
 
-  /*********************************************************/
-  /* TODO: read list of conserved features for this chromosome from a file */
-  sf = NULL;
-  n_sf = 0;
-
-  /********************************************************/
+  /* read list of conserved features for this chromosome from a BED file */
+  cons_filename = get_cons_filename(config, chr);
+  fprintf(stderr, "reading conserved features from '%s'\n", cons_filename);
+  sf = seqfeat_read_bed(cons_filename, &n_sf);
+  g_free(cons_filename);
 
   /* order conserved elements */
   qsort(sf, n_sf, sizeof(SeqFeature), seqfeat_cmp_nostrand);
@@ -75,8 +150,6 @@ static GList *get_cons_rec_dists(Config *config, Chromosome *chr,
    */
   cons_list = NULL;
   ttl_cons = 0;
-
-
   last_end = -1;
   for(i = 0; i < n_sf; i++) {
     cblk = g_new(ConsBlock, 1);
@@ -214,12 +287,11 @@ void calc_bkgd_chr(Chromosome *chr, RecRateTable *rtab, GList *cons_list,
 
 
 
-int main(int argc, char **argv) {
+int main(const int argc, const char **argv) {
   Config *config;
   GList *cons_list, *cur;
-  char *out_dir, *out_path, **chr_names, chr_filename;
+  char *out_dir, *out_path, *chr_filename;
   int n_chr, i;
-  SeqCoord *region;
   RecRateTable *rtab;
   FILE *out_fh;
   BkgdParam *parm;
@@ -244,7 +316,7 @@ int main(int argc, char **argv) {
 
   for(i = 0; i < n_chr; i++) {
     fprintf(stderr, "\nchromosome: %s\n", chrs[i].name);
-    out_path = util_str_concat(out_dir, chrs[i].name, ".bkgd", NULL);
+    out_path = util_str_concat(out_dir, "/", chrs[i].name, ".bkgd", NULL);
     out_fh = util_must_fopen(out_path, "w");
     g_free(out_path);
 
@@ -257,7 +329,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "calculating conserved rec dists\n");
     cons_list = get_cons_rec_dists(config, &chrs[i], rtab);
 
-    fprintf(stderr, "  total recomb dist for %s: %gM\n", 
+    fprintf(stderr, "total recomb dist for %s: %gM\n", 
 	    chrs[i].name, rtab->chr_r_len);
 
     /* calculate strength of background selection at each position on chr */

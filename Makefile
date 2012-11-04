@@ -7,7 +7,7 @@ LFLAGS += `pkg-config glib-2.0 --libs`
 LFLAGS += `gsl-config --libs`
 CC=gcc
 
-objects=bkgd.o bkgd_interp.o interp_tab.o bkgd_intg.o bkgd_param.o bkgd_point.o bkgd_data.o util/util.o util/config.o util/err.o util/memutil.o bio/chr.o bio/rectab.o bio/seqcoord.o bio/bkgd_reader.o bio/seqfeat.o bio/nuc.o
+objects=bkgd.o bkgd_interp.o interp_tab.o bkgd_intg.o bkgd_param.o bkgd_point.o bkgd_data.o util/util.o util/config.o util/err.o util/memutil.o bio/chr.o rectab.o bio/seqcoord.o bkgd_reader.o bio/seqfeat.o bio/nuc.o
 
 default: $(objects) calc_bkgd
 

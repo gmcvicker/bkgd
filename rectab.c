@@ -1,58 +1,55 @@
 
 #include "rectab.h"
-#include "seqcoord.h"
+#include "bio/seqcoord.h"
+#include "bio/seqfeat.h"
+#include "util/util.h"
 
 
 
-/**
- * Reads BED file containing recombination rates for physical
- * regions. The format of the file is expected to be:
- *    chromosome start end name score
- * Here score should specify the average recombination rate of the region 
- * (which may be scaled by a constant). 
- *
- * The name attribute is not used by this function, but must be present
- * as a placeholder.
- * 
- * Other information on the BED lines, including strand, 
- * is ignored by this function.
- * 
- * BED coordinates start at 0, but we use inclusive coordinates that 
- * start at 1, so +1 is added to start values in the file.
- *
- * If the chromosome is specified, then only lines that match the 
- * provided chromosome name are used.
- * 
- */
-SeqCoord *rectab_read_rate_coords(const char *filename, Chromosome *chr,
-				  long *n_coord) {
-  SeqCoord *coords;
-  char buf[MAX_LINE], chr_name_buf[MAX_LINE];
+void rectab_check(RecRateTable *rt) {
+  RecRateBlock *blk, *prev_blk;
+  long i;
 
-  f = util_must_fopen(filename, "r");
+  for(i = 0; i < rt->n; i++) {
+    blk = &rt->blk[i];
 
-  /* first pass, count number of coords that match chromosome name */
-  *n_coord = 0;
-  while(fgets(buf, sizeof(buf), f)) {
-    if(chr) {
-      if(sscanf(buf, "%s", chr_name_buf) == 0) {
-	my_err("%s:%d: empty line, or first token missing", __FILE__,
-	       __LINE__);
+    if(blk->rate < 0.0) {
+      g_error("%s:%d: invalid recombination rate %g for block %ld-%ld\n",
+	      __FILE__, __LINE__, blk->rate, blk->start, blk->end);
+    }
+
+    if(blk->start > blk->end) {
+      g_error("%s:%d: invalid coordinates for "
+	      "block %ld: %ld-%ld", __FILE__, __LINE__, i,
+	      blk->start, blk->end);
+    }
+
+    if(blk->r_end < blk->r_start) {
+      g_error("%s:%d: invalid recombination map coordinates %g-%g for "
+	      "block %ld-%ld", __FILE__, __LINE__, blk->r_start, blk->r_end, 
+	      blk->start, blk->end);
+    }
+    
+    if(i > 0) {
+      prev_blk = &rt->blk[i-1];
+
+      if(prev_blk->end != blk->start-1) {
+	g_error("%s:%d: recombination rate blocks %ld-%ld and %ld-%ld "
+		"are not contiguous\n",
+		__FILE__, __LINE__, prev_blk->start, prev_blk->end,
+		blk->start, blk->end);
       }
-      if(strcmp(chr->name, chr_name_buf) == 0) {
-	*n_coord += 1;
+
+      if(prev_blk->r_end > blk->r_start) {
+	g_error("%s:%d: recombination rate blocks %ld-%ld and %ld-%ld "
+		"have overlapping or invalid recombination map positions\n",
+		__FILE__, __LINE__, prev_blk->start, prev_blk->end,
+		blk->start, blk->end);
       }
-    } else {
-      *n_coord += 1;
     }
   }
   
-  fclose(f);
-
-  if(coords == 0) {
-
-  }
-  return coords;
+  return;
 }
 
 /**
@@ -154,12 +151,18 @@ RecRateTable *rectab_from_feats(SeqFeature *orig_sf, long n_orig_sf,
     b = rt->blk;
 	
     b->start = 1;
-    b->end  = sf[0].c.start-1;
+    b->end  = sf[0].c.start - 1;
     len = b->end - b->start + 1;
     b->rate = sf[0].score * scale;
     b->r_start = 0.0;
     b->r_end = (double)(len-1) * b->rate;
     rt->cur = 1;
+
+    fprintf(stderr, "WARNING: adding recombination block to beginning of "
+	    "chromosome (%ld-%ld)\n         assuming same rate "
+	    "as first defined block.\n         probably should not "
+	    "trust B values in this region.\n", b->start, b->end);
+
   }  else {
     rt->cur = 0;
   }
@@ -220,6 +223,11 @@ RecRateTable *rectab_from_feats(SeqFeature *orig_sf, long n_orig_sf,
     b->r_end = b->r_start + (b->rate * (double)(len-1));
 
     rt->cur += 1;
+
+    fprintf(stderr, "WARNING: adding recombination block to end of "
+	    "chromosome (%ld-%ld)\n         assuming same rate "
+	    "as last defined block.\n         probably should not "
+	    "trust B values in this region.\n", b->start, b->end);
   }
 
 
@@ -235,6 +243,9 @@ RecRateTable *rectab_from_feats(SeqFeature *orig_sf, long n_orig_sf,
 
 
   g_free(sf);
+
+  /* validate that recombination map looks sane */
+  rectab_check(rt);
 
   return rt;
 }

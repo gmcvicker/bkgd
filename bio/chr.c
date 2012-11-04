@@ -48,7 +48,6 @@ Chromosome *chr_read_file(const char *filename, int *n_chr) {
 
   f = util_must_fopen(filename, "r");
   *n_chr = util_fcount_lines(f);
-  
 
   if(*n_chr < 1) {
     my_err("%s:%d: chromosome file '%s' is empty\n", 

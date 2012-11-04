@@ -440,7 +440,6 @@ static inline double calc_sum_up_bound(BkgdPoint *bpoint, GList *cur_cons,
       g_error("calc_sum_up_bound: r_dist %g should not be < 0.0", 
 	      r_dist);
     }
-
   }
   
   /* to calc upper bound on remaining sum assume the next conserved

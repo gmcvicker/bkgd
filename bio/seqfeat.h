@@ -29,7 +29,7 @@ struct SeqFeature_struct {
   SeqCoord c;  /* genomic coordinate */
   long id;     /* database identifier */
   char *name;  /* name of feature */
-  float score; /* score of feature */
+  double score; /* score of feature */
 
   SeqFeatAttrib *attrib; /* ptr to list of other named attributes */
 
