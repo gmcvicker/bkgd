@@ -3,8 +3,8 @@ background selection. This software was written by Graham McVicker and
 is described in detail in the methods section of our paper, McVicker
 et al. 2009: http://dx.plos.org/10.1371/journal.pgen.1000471
 
-A few of the mathematical details that were omitted from the paper for
-brevity are provided in the file bkgd_selection.pdf.
+Some additional mathematical details are provided in the file
+bkgd_selection.pdf.
 
 If you have any questions about the software please contact me at:
 <first_initial><lastname>@uchicago.edu
@@ -20,11 +20,11 @@ purifying selection. All of the options for the program are provided
 through a configuration file. An example file that explains all of the
 options is provided in the conf/calc_bkgd.conf
 
-calc_bkgd depends on glibc-2.x for several data structures
-(e.g. hashtables, linked lists, stacks), and on the gnu scientific
-library (gsl) for numerical integration and function
-minimization. Both of these software libraries must be installed
-before calc_bkgd can be compiled.
+calc_bkgd depends on glib-2.x (http://developer.gnome.org/glib/) for
+several data structures (e.g. hashtables, linked lists, stacks), and
+on the gnu scientific library (http://www.gnu.org/software/gsl/) for
+numerical integration and function minimization. Both of these
+software libraries must be installed before calc_bkgd can be compiled.
 
 To compile:
   cd bkgd
