@@ -1,28 +1,47 @@
+This repository contains code for estimating the strength of
+background selection. This software was written by Graham McVicker and
+is described in detail in the methods section of our paper, McVicker
+et al. 2009: http://dx.plos.org/10.1371/journal.pgen.1000471
 
-There are two main programs that make up the software. The first
-program, calc_bkgd, takes recombination rates, the locations of
-conserved segments under purifying selection and some parameters that
-define the distribution of selection coefficients. Using these data
-the program estimates a B value for every location in the genome.
+A few of the mathematical details that were omitted from the paper for
+brevity are provided in the file bkgd_selection.pdf.
 
-The second program, bkgd_mle, takes a set of 5-species multiple
-alignments and B values and performs maximum likelihood estimation of
-several evolutionary parameters including the ancestral effective
-populations sizes, mutation rates and rescaling factor for the
-selection coefficients.
+If you have any questions about the software please contact me at:
+<first_initial><lastname>@uchicago.edu
 
-Currently, the code is not very usable by other people. The main issue
-is that it is written to retrieve conserved sites and recombination
-rates from a mysql database which I used at UW. The code that
-retrieves data from the database is in a separate library, which I
-also wrote (I can provide this to you if you wish). My plan is to
-strip the database components from the background selection code, and
-to make it read features and recombination rates from user-provided
-files instead.
+calc_bkgd
+---------
 
-The code also depends on several external libraries. I use glibc for
-several datastructures (e.g. hashtables, linked lists, stacks), and I
-use the gnu scientific library (gsl) for numerical integration and
-function minimization. I've also been using scons (www.scons.org) to
-build my code, rather than traditional makefiles.
+The calc_bkgd program computes the reduction in neutral diversity due
+to background selection (B-values) at every site in a genome.  As
+input the program takes a recombination map, a list of chromosomes to
+run on, and the locations of elements that are believed to be under
+purifying selection. All of the options for the program are provided
+through a configuration file. An example file that explains all of the
+options is provided in the conf/calc_bkgd.conf
+
+calc_bkgd depends on glibc-2.x for several data structures
+(e.g. hashtables, linked lists, stacks), and on the gnu scientific
+library (gsl) for numerical integration and function
+minimization. Both of these software libraries must be installed
+before calc_bkgd can be compiled.
+
+To compile:
+  cd bkgd
+  make
+
+
+bkgd_mle
+--------
+
+This program uses the B-values computed by calc_bkgd and a
+multi-species sequence alignment to perform maximum likelihood
+estimation of evolutionary parameters such as mutation rates,
+deleterious mutation rates, effective population sizes, and speciation
+times. The program is written specifically for multiple alignments of
+human, chimp, gorilla, orangutan macaque genome sequences, but could
+probably be adapted to other purposes. Currently this program is not
+built by the makefile. Contact me if you are interested in using this
+part of the code and I can help get you started.
+
 
