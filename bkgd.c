@@ -20,8 +20,15 @@ double bkgd_t_dist_gamma(double t, void *v) {
 
   double k = p->gamma_shape;
   double m = p->gamma_scale;
+  
+  double value = (p->gamma_c * pow(t, k-1.0) * exp(-t/m)) / (tgamma(k) * pow(m,k));
 
-  return (p->gamma_c * pow(t, k-1.0) * exp(-t/m)) / (tgamma(k) * pow(m,k));
+  /*
+   * fprintf(stderr, "t:%g k=gamma_shape:%g m=gamma_scale:%g, 
+   *         value:%g\n", t, p->gamma_shape, p->gamma_scale, value);
+   */
+  
+  return value;
 }
 
 

@@ -183,7 +183,9 @@ void bkgd_gsl_integration_wrapper(gsl_function *f, double a, double b,
   BkgdIntgRange *r;
   double intg, err, intg_ttl, err_ttl;
 
-  /* find set of ranges over which numerical integration can be performed */
+  /* find set of ranges over which numerical integration 
+   * can be performed 
+   */
   ranges = find_intg_ranges(f, a, b, param); 
     
   cur = ranges;
@@ -196,24 +198,26 @@ void bkgd_gsl_integration_wrapper(gsl_function *f, double a, double b,
 
     /* integrate numerically over range t=[a..b]*/
 
-/*     switch(r->type) { */
-/*     case(INTG_RANGE_ZERO): */
-/*       fprintf(stderr, "  zero-valued range:"); */
-/*       break; */
-/*     case(INTG_RANGE_LOW): */
-/*       fprintf(stderr, "  low-valued range:"); */
-/*       break; */
-/*     case(INTG_RANGE_MID): */
-/*       fprintf(stderr, "  mid-valued range:"); */
-/*       break; */
-/*     case(INTG_RANGE_HIGH): */
-/*       fprintf(stderr, "  high-valued range:"); */
-/*       break; */
-/*     default: */
-/*       g_error("unknown range type"); */
-/*     } */
-/*     fprintf(stderr, "[%g,%g], edge vals:[%g,%g]\n", */
-/* 	    r->a, r->b, r->a_y, r->b_y); */
+    /* for debugging */
+    /* switch(r->type) { */
+    /* case(INTG_RANGE_ZERO): */
+    /*   fprintf(stderr, "  zero-valued range:"); */
+    /*   break; */
+    /* case(INTG_RANGE_LOW): */
+    /*   fprintf(stderr, "  low-valued range:"); */
+    /*   break; */
+    /* case(INTG_RANGE_MID): */
+    /*   fprintf(stderr, "  mid-valued range:"); */
+    /*   break; */
+    /* case(INTG_RANGE_HIGH): */
+    /*   fprintf(stderr, "  high-valued range:"); */
+    /*   break; */
+    /* default: */
+    /*   g_error("unknown range type"); */
+    /* } */
+    /* fprintf(stderr, "[%g,%g], edge vals:[%g,%g]\n", */
+    /* 	    r->a, r->b, r->a_y, r->b_y); */
+    /*******************/
 
     if(r->type == INTG_RANGE_ZERO) {
       /* skip ranges that are very near zero */
@@ -232,7 +236,7 @@ void bkgd_gsl_integration_wrapper(gsl_function *f, double a, double b,
 
   free_intg_ranges(ranges);  
 
-  /* fprintf(stderr, "done intg=%g\n", intg_ttl); */
+  /* fprintf(stderr, "done intg=%g\n", intg_ttl);*/
 
   *intg_ptr = intg_ttl;
   *err_ptr = err_ttl;

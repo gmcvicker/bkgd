@@ -240,6 +240,7 @@ void calc_bkgd_chr(Chromosome *chr, RecRateTable *rtab, GList *cons_list,
 
   b_len = 0;
 
+
   /* Create interpolator to estimate B values at positions along chr */
   bgi = bkgd_interp_new(rtab, chr->len, cons_list, parm);
 

@@ -149,21 +149,67 @@ double gamma_expect_integrand(double x, void *v) {
  * This function will return 0, when scale parameter gives desired
  * mean.
  */
-double gamma_root_func(double scale, void *v) {
+double gamma_root_func(void *v) {
   BkgdIntg *bi = v;
   double expect, err;
 
-  bi->p->gamma_scale = scale;
+  /* bi->p->gamma_scale = scale;*/
   
   /* calculate mean */
-
 
   bkgd_gsl_integration_wrapper(&bi->f, bi->p->a, bi->p->b, bi->w,
 			       bi->p, &expect, &err);
 
+  /* fprintf(stderr, "scale: %g, expect_t: %g, target_t: %g\n", 
+   * bi->p->gamma_scale, expect, bi->p->t);
+   */
 
-  /* will be 0 when mean is t and pdf integral is 1 */
+  /* we set this up so that return value is 0 when 
+   * the expectation (mean) of distribution is equal to
+   * to the desired value 't'
+   */
   return expect - bi->p->t;
+}
+
+
+/**
+ * Finds normalization constant for truncated Gamma distribution.
+ * (since distribution is truncated, it no longer sums to 1 without
+ * this constant)
+ */
+static void set_gamma_dist_norm_const(BkgdParam *parm) {
+  BkgdIntg b_intg;
+  double intgl, err;
+
+  /* now find normalizing constant to ensure PDF integral = 1 despite
+   * truncation
+   */
+  b_intg.w = gsl_integration_workspace_alloc(BKGD_INTG_LIMIT);
+  b_intg.f.params = parm;
+  b_intg.p = parm;
+  b_intg.f.function = &bkgd_t_dist_gamma;  
+
+
+  parm->gamma_c = 1.0;
+  bkgd_gsl_integration_wrapper(&b_intg.f, parm->a, parm->b, b_intg.w,
+			       parm, &intgl, &err);
+
+  parm->gamma_c = 1.0 / intgl;
+
+  /* fprintf(stderr, "a:%g b:%g " */
+  /* 	  "gamma_shape:%g gamma_scale:%g gamma_c:%g intgl:%g\n",  */
+  /* 	  parm->a, parm->b, parm->gamma_shape, parm->gamma_scale, */
+  /* 	  parm->gamma_c, intgl); */
+
+  if(intgl > 1.001) {
+    g_error("set_gamma_dist_norm_const: Numerical estimation of "
+	    "normalization constant for truncated gamma distribution "
+	    "failed. Integral of distribution should be < 1.0 but "
+	    "got %g\n", intgl);
+  }
+  
+  
+  gsl_integration_workspace_free(b_intg.w);
 }
 
 
@@ -171,13 +217,16 @@ double gamma_root_func(double scale, void *v) {
 
 static void calc_gamma_dist_param(BkgdParam *parm) {
   BkgdIntg b_intg;
-  double low_brk, up_brk, mid, y, err, intgl;
+  double low_brk, up_brk, mid, y, err;
 
   parm->gamma_c = 1.0;
-
   b_intg.w = gsl_integration_workspace_alloc(BKGD_INTG_LIMIT);
   b_intg.f.params = parm;
   b_intg.p = parm;
+
+  /* we want to integrate this function to find expectation of
+   * truncated gamma distribution, given a shape and scale parameters
+   */
   b_intg.f.function = &gamma_expect_integrand;
 
   fprintf(stderr, "estimating scale for truncated gamma "
@@ -185,27 +234,42 @@ static void calc_gamma_dist_param(BkgdParam *parm) {
 	  parm->gamma_shape, parm->a, parm->b, parm->t);
 
   /* fit scale parameter by searching for root of function */
-
   up_brk = 1.0;
   low_brk = 1e-4;
   
   /* find lower bracket that is on left side of root */
-
   /* fprintf(stderr, "finding low bracket\nlow_brk=%g\n", low_brk); */
 
-  y = gamma_root_func(low_brk, &b_intg);
+  parm->gamma_scale = low_brk;
+  set_gamma_dist_norm_const(parm);
+  y = gamma_root_func(&b_intg);
   while(y > 0.0) {
     low_brk *= 0.5;
-    y = gamma_root_func(low_brk, &b_intg);
+    parm->gamma_scale = low_brk;
+    set_gamma_dist_norm_const(parm);
+    y = gamma_root_func(&b_intg);
     /* fprintf(stderr, "low_brk=%g, y=%g\n", low_brk, y); */
   }
 
   /* find upper bracket that is on right side of root */
   /* fprintf(stderr, "finding upper bracket\n"); */
-  y = gamma_root_func(up_brk, &b_intg);
+  parm->gamma_scale = up_brk;
+  set_gamma_dist_norm_const(parm);
+  y = gamma_root_func(&b_intg);
   while(y < 0.0) {
     up_brk *= 2.0;
-    y = gamma_root_func(up_brk, &b_intg);
+    parm->gamma_scale = up_brk;
+    set_gamma_dist_norm_const(parm);
+    y = gamma_root_func(&b_intg);
+
+    if(up_brk > 1e100) {
+      g_error("calc_gamma_dist_param: unable to find a reasonable "
+	      "scale parameter for truncated gamma distribution "
+	      "with shape %g that will give mean(t) of %g. "
+	      "Use a different shape parameter or a different mean t.",
+	      parm->gamma_shape, parm->t);
+    }
+
     /* fprintf(stderr, "up_brk=%g, y=%g\n", up_brk, y); */
   }
 
@@ -215,7 +279,9 @@ static void calc_gamma_dist_param(BkgdParam *parm) {
   err = up_brk - low_brk;
   mid = (low_brk + up_brk) * 0.5;
   while(err > mid*BKGD_PARAM_EPS_REL) {
-    y = gamma_root_func(mid, &b_intg);
+    parm->gamma_scale = mid;
+    set_gamma_dist_norm_const(parm);
+    y = gamma_root_func(&b_intg);
         
     if(y < 0.0) {
       low_brk = mid;
@@ -229,39 +295,8 @@ static void calc_gamma_dist_param(BkgdParam *parm) {
      * low_brk, up_brk, err); */
   }
 
-  fprintf(stderr, "  gamma_scale=%g, err=%g\n", parm->gamma_scale, err);
-
-  /* now find normalizing constant to ensure PDF integral = 1 despite
-   * truncation
-   */
-  b_intg.f.function = &bkgd_t_dist_gamma;  
-
-  bkgd_gsl_integration_wrapper(&b_intg.f, parm->a, parm->b, b_intg.w,
-			       parm, &intgl, &err);
-
-/*   gsl_integration_qags(&b_intg.f, parm->a, parm->b, */
-/* 		       BKGD_INTG_EPS_ABS, BKGD_INTG_EPS_REL, BKGD_INTG_LIMIT, */
-/* 		       b_intg.w, &intgl, &err); */
-  
-  parm->gamma_c = 1.0 / intgl;
-
-  fprintf(stderr, "  gamma_c=%g\n", parm->gamma_c);
-  
-  gsl_integration_workspace_free(b_intg.w);
-
-
-  /* integration gets into trouble when f(t) drops below min
-   * representable value on machine, define upper bound on t to
-   * account for this
-   *
-   * This is commented out because it is now handled by 
-   * the integration routine in a better way.
-   */
-  /*   adjust_t_upbound(parm); */
-  /*   adjust_t_lowbound(parm); */
-
-  /*   fprintf(stderr, "range of integration is now [a=%g..b=%g]\n",  */
-  /* 	  parm->a, parm->b); */
+  fprintf(stderr, "  gamma_scale=%g, err=%g\n", 
+	  parm->gamma_scale, err);
 
 }
 
