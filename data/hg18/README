@@ -1,0 +1,42 @@
+Sept. 22, 2008
+
+Background selection (B) value estimates calculated using gcons
+conserved segments (score > 10) and a finescale recombination map
+(Myers et al. 2005). Coordinates are for NCBI36/hg18 version of the
+human genome assembly.
+
+Each line contains two space-separated values. The first value is the
+B value rounded to three decimal places and multiplied by 1000 (ranges
+from 0-1000). The second value is the length of the segment in bp. For
+example, the file chr10.bkgd begins with the lines: 
+835 18021 
+830 18467
+824 18015 
+This indicates that chromosome 10 begins with a run of 18021
+bases with B value 0.835 followed by 18467 bases with B-value
+0.830, etc.
+
+Parameter values used to compute these B-values are from maximum 
+likelihood estimates from 5-species (HCGOM) data for autosomes and 
+2-species (HC) data for chromosome X.
+
+Parameters:
+
+Autosomes
+---------
+f(t)  [selection coef distr]: Exponential
+t_ex  [mean exonic selection coef]: 0.0025
+t_nex [mean non-exonic selection coef]: 1.0e-5
+u_ex  [exonic deleterious mutation rate]: 7.4e-8
+u_nex [non-exonic deleterious mutation rate]: 8.4e-10
+
+ChrX
+----
+f(t)  [selection coef distr]: Exponential
+t_ex  [mean exonic selection coef]: 0.00133
+t_nex [mean non-exonic selection coef]: 3.3e-5
+u_ex  [exonic deleterious mutation rate]: 1.6e-7
+u_nex [non-exonic deleterious mutation rate]: 2.2e-18
+
+
+
