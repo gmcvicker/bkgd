@@ -1,0 +1,32 @@
+This directory contains Background selection (B) value estimates
+computed for the human genome. These estimates used the locations of
+'gcons' conserved segments (score > 10) described in the paper and a
+finescale recombination map (Myers et al. 2005).  B-values were
+computed on the NCBI36/hg18 version of the human genome assembly and
+subsequently lifted-over to the hg19 and hg38 assemblies.
+
+Parameter values used to compute these B-values are from maximum
+likelihood estimates from 5-species (HCGOM) data for autosomes and
+2-species (HC) data for chromosome X as described in McVicker et
+al. 2009.
+
+Parameters:
+
+Autosomes
+---------
+f(t)  [selection coef distr]: Exponential
+t_ex  [mean exonic selection coef]: 0.0025
+t_nex [mean non-exonic selection coef]: 1.0e-5
+u_ex  [exonic deleterious mutation rate]: 7.4e-8
+u_nex [non-exonic deleterious mutation rate]: 8.4e-10
+
+ChrX
+----
+f(t)  [selection coef distr]: Exponential
+t_ex  [mean exonic selection coef]: 0.00133
+t_nex [mean non-exonic selection coef]: 3.3e-5
+u_ex  [exonic deleterious mutation rate]: 1.6e-7
+u_nex [non-exonic deleterious mutation rate]: 2.2e-18
+
+
+

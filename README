@@ -45,3 +45,7 @@ built by the makefile. Contact me if you are interested in using this
 part of the code and I can help get you started.
 
 
+Data
+----
+Precomputed B-values for the human genome are provided in the data directory.
+
