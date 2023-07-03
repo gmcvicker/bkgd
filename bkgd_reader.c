@@ -55,11 +55,9 @@ static int bkgd_read_line(gzFile gzf, int *len) {
  */
 BkgdReader *bkgd_reader_new(char *filename) {
   BkgdReader *br;
-  size_t len;
   
   br = g_new(BkgdReader, 1);
 
-  len = strlen(filename);
   
   br->gzf = gzopen(filename, "rb");
   if(br->gzf == NULL) {
