@@ -1,0 +1,5 @@
+The bkgd_hg38.bed.gz file contains B-values in BED file format. These were
+originally computed in hg18 and converted to hg38 using the liftover
+tool.
+
+
