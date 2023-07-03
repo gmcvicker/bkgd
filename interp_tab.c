@@ -46,7 +46,7 @@ static inline int dbl2idx(double d) {
   }
 
   if(x > INTERP_TAB_MAX_EXP) {
-    g_warning("dbl2idx: value %g exceeds interpolation table maximum\n",d);
+    g_warning("dbl2idx: value %g exceeds interpolation table maximum. Recombination rate values may be too high potentially because RECOMB_RATE_SCALE is set incorrectly.\n",d);
     x = INTERP_TAB_MAX_EXP;
   }
     
@@ -126,6 +126,8 @@ inline double interp_tab_lookup(InterpTab *tab, double x, double y) {
    * of requested value
    */
   x_idx2 = dbl2idx(x);
+
+  
   if(x_idx2 == 0) {
     x_idx1 = 0;
     x_idx2 = 1;
@@ -143,7 +145,7 @@ inline double interp_tab_lookup(InterpTab *tab, double x, double y) {
     y_idx1 = 0;
     y_idx2 = 1;
   } else {
-    if(tab->y[x_idx2] >= y || y_idx2 == INTERP_TAB_N_ENTRIES-1) {
+    if(tab->y[y_idx2] >= y || y_idx2 == INTERP_TAB_N_ENTRIES-1) {
       y_idx1 = y_idx2 - 1;
     } else {
       y_idx1 = y_idx2;

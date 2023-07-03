@@ -13,7 +13,7 @@
 /* maximum exponent stored in interpolation table */
 #define INTERP_TAB_MAX_EXP   5
 /* number of entries in the interpolation table */
-#define INTERP_TAB_N_ENTRIES ((INTERP_TAB_MAX_EXP-INTERP_TAB_MIN_EXP)*INTERP_TAB_FR_MULT + 1)
+#define INTERP_TAB_N_ENTRIES ((INTERP_TAB_MAX_EXP-INTERP_TAB_MIN_EXP+1)*INTERP_TAB_FR_MULT + 1)
 
 
 
