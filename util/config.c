@@ -429,14 +429,14 @@ int config_get_boolean(const Config *conf, const char *key) {
     return FALSE;
   }
 
-  if((g_strcasecmp(val, "TRUE") == 0) || 
-     (g_strcasecmp(val, "T") == 0) ||
-     (g_strcasecmp(val, "1") == 0)) {
+  if((g_ascii_strcasecmp(val, "TRUE") == 0) || 
+     (g_ascii_strcasecmp(val, "T") == 0) ||
+     (g_ascii_strcasecmp(val, "1") == 0)) {
     return TRUE;
   }
-  else if((g_strcasecmp(val, "FALSE") == 0) || 
-	  (g_strcasecmp(val, "F") == 0) ||
-	  (g_strcasecmp(val, "0") == 0)) {
+  else if((g_ascii_strcasecmp(val, "FALSE") == 0) || 
+	  (g_ascii_strcasecmp(val, "F") == 0) ||
+	  (g_ascii_strcasecmp(val, "0") == 0)) {
     return FALSE;
   }
 

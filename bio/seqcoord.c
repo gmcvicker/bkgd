@@ -182,8 +182,8 @@ char *seq_coord_str(SeqCoord *sc) {
     str = g_string_new("");
   }
 
-  g_string_sprintfa(str, ":%ld-%ld(%c)", sc->start, sc->end, 
-		    strand_to_char(sc->strand));
+  g_string_append_printf(str, ":%ld-%ld(%c)", sc->start, sc->end, 
+			 strand_to_char(sc->strand));
 
   c_str = str->str;
 
