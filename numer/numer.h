@@ -1,5 +1,5 @@
 #ifndef __NUMER_H__
-#define __NUMER_H___
+#define __NUMER_H__
 
 
 #include <math.h>
