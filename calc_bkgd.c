@@ -41,6 +41,11 @@ static RecRateTable *get_rectab(Config *config, Chromosome *chr) {
    * interval features than there are markers in the map.
    */
   n_sf = util_fcount_lines(f) - 2;
+
+  if(n_sf <= 0) {
+    g_error("%s:%d: expected a header and at least 2 recombination markers "
+	    "in map file '%s'\n", __FILE__, __LINE__, rec_rate_filename);
+  }
   
   /* skip header line */
   if(fgets(buf, sizeof(buf), f) == NULL) {
@@ -229,21 +234,18 @@ void calc_bkgd_chr(Chromosome *chr, RecRateTable *rtab, GList *cons_list,
 		   BkgdParam *parm,  FILE *out_fh) {
   double b;
   long pos;
-  GList *next_cons;
   int b_int, prev_b_int, b_len;
   BkgdInterp *bgi;
 
-  next_cons = cons_list;
 
   /* b is background selection strength */
   prev_b_int = b_int = -1;
 
   b_len = 0;
 
-
   /* Create interpolator to estimate B values at positions along chr */
   bgi = bkgd_interp_new(rtab, chr->len, cons_list, parm);
-
+  
   pos = 1;
   while(pos <= chr->len) {
     b = bkgd_interp_eval(bgi, pos);
